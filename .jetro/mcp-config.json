@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "jetro": {
+      "command": "/Users/sumit/.jetro/runtime/node-darwin-arm64",
+      "args": [
+        "/Users/sumit/.jetro/mcp-server/index.js"
+      ],
+      "env": {
+        "JET_WORKSPACE": "/Users/sumit/Desktop/djongo",
+        "JET_API_URL": "https://api.jetro.ai",
+        "PATH": "/Users/sumit/.jetro/runtime:/Users/sumit/.antigravity-ide/antigravity-ide/bin:/Users/sumit/.codeium/windsurf/bin:/Library/Frameworks/Python.framework/Versions/3.14/bin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/opt/homebrew/bin"
+      }
+    }
+  }
+}

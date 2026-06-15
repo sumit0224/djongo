@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -40,8 +40,8 @@ def register(request):
 
 # User Login
 @api_view(["POST"])
+@permission_classes([AllowAny])
 def login(request):
-
     username = request.data.get("username")
     password = request.data.get("password")
 
@@ -51,15 +51,39 @@ def login(request):
     )
 
     if user:
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
         return Response({
             "message": "Login Successful",
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
             "user": UserSerializer(user).data
-        })
+        }, status=status.HTTP_200_OK)
 
     return Response(
         {"error": "Invalid Credentials"},
         status=status.HTTP_401_UNAUTHORIZED
     )
+
+
+# User Logout
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    # For stateless JWT, logout is primarily handled by the client discarding the token.
+    # We can also blacklist the token if blacklist app is enabled, but clearing localStorage suffices.
+    return Response({"message": "Logout Successful"}, status=status.HTTP_200_OK)
+
+
+# Get Profile
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_profile(request):
+    """
+    Return the current logged-in user details.
+    """
+    serializer = UserSerializer(request.user)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 # Get All Products
@@ -147,13 +171,14 @@ def get_cart(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(["PATCH"])
+@api_view(["PATCH", "DELETE"])
 @permission_classes([IsAuthenticated])
 def update_cart(request, item_id):
     """
-    Update CartItem quantity.
-    Validate quantity > 0.
-    Return updated cart item.
+    Update CartItem quantity or remove item from cart.
+    - PATCH: Update quantity (Validate quantity > 0).
+    - DELETE: Remove item from cart.
+    Return updated cart item or deletion confirmation.
     """
     try:
         # Retrieve the cart item. It must belong to the logged-in user's cart.
@@ -161,6 +186,14 @@ def update_cart(request, item_id):
     except CartItem.DoesNotExist:
         return Response({"error": "Cart item not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    if request.method == "DELETE":
+        try:
+            cart_item.delete()
+            return Response({"message": "Item removed from cart successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Otherwise PATCH (quantity update)
     serializer = UpdateCartItemSerializer(cart_item, data=request.data, partial=True)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

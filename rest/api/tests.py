@@ -66,7 +66,7 @@ class EcommerceAPITests(APITestCase):
                 response = self.client.post(url, {})
             else:
                 response = self.client.get(url)
-            self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+            self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_add_to_cart_success(self):
         """Adding active products to the cart successfully."""
@@ -206,3 +206,50 @@ class EcommerceAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["items"][0]["product"]["id"], self.product1.id)
+
+    def test_get_profile(self):
+        """Retrieve authenticated user's profile details."""
+        profile_url = reverse("profile")
+        
+        # Unauthenticated check
+        res = self.client.get(profile_url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Authenticated check
+        self.client.force_authenticate(user=self.user)
+        res = self.client.get(profile_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["username"], self.user.username)
+
+    def test_logout(self):
+        """Log out the authenticated user."""
+        logout_url = reverse("logout")
+        
+        # Unauthenticated check
+        res = self.client.post(logout_url)
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+        
+        # Authenticated check
+        self.client.force_authenticate(user=self.user)
+        res = self.client.post(logout_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["message"], "Logout Successful")
+
+    def test_delete_cart_item(self):
+        """Delete an item from the cart."""
+        self.client.force_authenticate(user=self.user)
+        
+        # Add item first
+        add_res = self.client.post(self.add_to_cart_url, {"product_id": self.product1.id, "quantity": 2})
+        item_id = add_res.data["id"]
+        
+        delete_url = reverse("update_cart", kwargs={"item_id": item_id})
+        
+        # Delete item
+        res = self.client.delete(delete_url)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["message"], "Item removed from cart successfully")
+        
+        # Verify it is deleted
+        cart_res = self.client.get(self.get_cart_url)
+        self.assertEqual(len(cart_res.data["items"]), 0)
